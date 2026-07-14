@@ -1,5 +1,14 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
+import {
+  createPost,
+  deletePost,
+  getPlaceByContentId,
+  getPost,
+  getPostImageUrl,
+  getPosts,
+  updatePost
+} from '../api/review'
 
 const props = defineProps({
   categories: {
@@ -14,23 +23,26 @@ const emit = defineEmits(['detail-change', 'back'])
 const selectedCategory = ref('all')
 const query = ref('')
 const selectedPlace = ref(null)
+const backendPlaceId = ref(null)
 const formOpen = ref(false)
 const editingId = ref(null)
 const fileInput = ref(null)
-
-const reviews = ref([
-  { id: 1, place: '해운대해수욕장', title: '아침 산책하기 정말 좋았어요', body: '사람이 많아지기 전 이른 시간에 방문했어요. 바다도 깨끗하고 주변 산책로가 잘 되어 있어 부산 여행의 시작으로 좋았습니다.', image: null, rating: 5, date: '2026.07.12', password: '1234' },
-  { id: 2, place: '해운대해수욕장', title: '도심과 바다를 함께 즐기는 곳', body: '대중교통으로 접근하기 편하고 식당과 카페가 가까워 하루 코스로 둘러보기 편했어요.', image: null, rating: 4, date: '2026.07.08', password: '1234' },
-  { id: 3, place: '감천문화마을', title: '골목마다 사진 찍을 곳이 많아요', body: '편한 신발을 신고 천천히 둘러보는 걸 추천해요. 전망대에서 내려다보는 마을 풍경이 특히 기억에 남았습니다.', image: null, rating: 5, date: '2026.07.03', password: '1234' },
-  { id: 4, place: '광안리해수욕장', title: '광안대교 야경은 꼭 보세요', body: '해가 진 뒤 분위기가 완전히 달라져요. 토요일 드론쇼까지 함께 보면 더 좋습니다.', image: null, rating: 5, date: '2026.06.28', password: '1234' }
-])
+const reviews = ref([])
+const loading = ref(false)
+const error = ref('')
+const actionError = ref('')
+const submitting = ref(false)
+const deletingId = ref(null)
+const requestToken = ref(0)
 
 const form = reactive({
+  nickname: '',
   title: '',
   body: '',
   rating: 5,
   password: '',
-  image: null
+  imageFile: null,
+  imagePreview: null
 })
 
 const allPlaces = computed(() =>
@@ -48,33 +60,87 @@ const filteredPlaces = computed(() => {
   })
 })
 
-const selectedReviews = computed(() =>
-  selectedPlace.value
-    ? reviews.value.filter((review) => review.place === selectedPlace.value.title)
-    : []
-)
+function formatDate(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat('ko-KR').format(date).replaceAll(' ', '').replace(/\.$/, '')
+}
+
+function toReview(listItem, detail) {
+  const firstImage = detail.images?.[0]
+  return {
+    id: detail.id,
+    title: detail.title,
+    body: detail.content,
+    nickname: detail.nickname,
+    rating: detail.rating,
+    date: formatDate(listItem.created_at),
+    image: firstImage ? getPostImageUrl(firstImage.image_id) : null
+  }
+}
+
+async function loadReviews(place = selectedPlace.value) {
+  const token = requestToken.value + 1
+  requestToken.value = token
+  loading.value = true
+  error.value = ''
+  actionError.value = ''
+  reviews.value = []
+  backendPlaceId.value = null
+
+  try {
+    if (!place?.contentId) {
+      throw new Error('장소의 contentId가 없습니다.')
+    }
+
+    const backendPlace = await getPlaceByContentId(place.contentId)
+    if (requestToken.value !== token) return
+
+    backendPlaceId.value = backendPlace.id
+    const list = await getPosts(backendPlace.id)
+    const details = await Promise.all(list.items.map((item) => getPost(item.id)))
+    if (requestToken.value !== token) return
+
+    const detailsById = new Map(details.map((detail) => [detail.id, detail]))
+    reviews.value = list.items
+      .map((item) => toReview(item, detailsById.get(item.id)))
+      .filter(Boolean)
+  } catch (err) {
+    if (requestToken.value === token) {
+      error.value = err instanceof Error ? err.message : '리뷰를 불러오지 못했습니다.'
+    }
+  } finally {
+    if (requestToken.value === token) {
+      loading.value = false
+    }
+  }
+}
 
 function selectPlace(place) {
   selectedPlace.value = place
   emit('detail-change', true)
   formOpen.value = false
-  editingId.value = null
+  resetForm()
+  loadReviews(place)
   window.setTimeout(() => document.querySelector('#place-reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
 }
 
 function openPlace(place) {
-  const matched = allPlaces.value.find((item) => item.title === place.title) || place
+  const matched = allPlaces.value.find((item) => item.contentId === place.contentId || item.title === place.title) || place
   selectPlace(matched)
 }
 
 defineExpose({ openPlace })
 
 function resetForm() {
+  form.nickname = ''
   form.title = ''
   form.body = ''
   form.rating = 5
   form.password = ''
-  form.image = null
+  form.imageFile = null
+  form.imagePreview = null
   editingId.value = null
   if (fileInput.value) fileInput.value.value = ''
 }
@@ -84,67 +150,101 @@ function openWriteForm() {
   formOpen.value = true
 }
 
-function handleImage(event) {
-  const file = event.target.files?.[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = () => { form.image = reader.result }
-  reader.readAsDataURL(file)
-}
-
-function submitReview() {
-  if (!selectedPlace.value || !form.title.trim() || !form.body.trim() || !form.password.trim()) return
-
-  if (editingId.value) {
-    const target = reviews.value.find((review) => review.id === editingId.value)
-    if (target) {
-      Object.assign(target, {
-        title: form.title.trim(),
-        body: form.body.trim(),
-        rating: Number(form.rating),
-        password: form.password,
-        image: form.image
-      })
-    }
-  } else {
-    reviews.value.unshift({
-      id: Date.now(),
-      place: selectedPlace.value.title,
-      title: form.title.trim(),
-      body: form.body.trim(),
-      rating: Number(form.rating),
-      password: form.password,
-      image: form.image,
-      date: new Intl.DateTimeFormat('ko-KR').format(new Date()).replaceAll(' ', '').replace(/\.$/, '')
-    })
-  }
-
+function closeForm() {
   formOpen.value = false
   resetForm()
 }
 
-function editReview(review) {
-  const password = window.prompt('작성할 때 입력한 비밀번호를 입력해 주세요.')
-  if (password !== review.password) {
-    if (password !== null) window.alert('비밀번호가 일치하지 않습니다.')
+function handleImage(event) {
+  const file = event.target.files?.[0]
+  if (!file) {
+    form.imageFile = null
+    form.imagePreview = null
     return
   }
+
+  form.imageFile = file
+  const reader = new FileReader()
+  reader.onload = () => {
+    form.imagePreview = reader.result
+  }
+  reader.readAsDataURL(file)
+}
+
+function buildFormData() {
+  const formData = new FormData()
+  if (!editingId.value) {
+    formData.append('place_id', String(backendPlaceId.value))
+    formData.append('nickname', form.nickname.trim())
+  }
+  formData.append('password', form.password)
+  formData.append('title', form.title.trim())
+  formData.append('content', form.body.trim())
+  formData.append('rating', String(Number(form.rating)))
+  if (form.imageFile) {
+    formData.append('images', form.imageFile)
+  }
+  return formData
+}
+
+async function submitReview() {
+  if (!selectedPlace.value || !backendPlaceId.value || submitting.value) return
+  if (!form.title.trim() || !form.body.trim() || !form.password.trim()) return
+  if (!editingId.value && !form.nickname.trim()) return
+
+  submitting.value = true
+  actionError.value = ''
+  try {
+    if (editingId.value) {
+      await updatePost(editingId.value, buildFormData())
+    } else {
+      await createPost(buildFormData())
+    }
+    closeForm()
+    await loadReviews()
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '리뷰를 저장하지 못했습니다.'
+  } finally {
+    submitting.value = false
+  }
+}
+
+function editReview(review) {
+  const password = window.prompt('작성할 때 입력한 비밀번호를 입력해 주세요.')
+  if (password === null) return
+
   editingId.value = review.id
+  form.nickname = review.nickname
   form.title = review.title
   form.body = review.body
   form.rating = review.rating
-  form.password = review.password
-  form.image = review.image
+  form.password = password
+  form.imageFile = null
+  form.imagePreview = review.image
   formOpen.value = true
+  if (fileInput.value) fileInput.value.value = ''
 }
 
-function deleteReview(review) {
+async function removeReview(review) {
   const password = window.prompt('리뷰를 삭제하려면 비밀번호를 입력해 주세요.')
-  if (password !== review.password) {
-    if (password !== null) window.alert('비밀번호가 일치하지 않습니다.')
-    return
+  if (password === null || deletingId.value) return
+
+  deletingId.value = review.id
+  actionError.value = ''
+  try {
+    await deletePost(review.id, password)
+    await loadReviews()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '리뷰를 삭제하지 못했습니다.'
+    actionError.value = message
+    window.alert(message)
+  } finally {
+    deletingId.value = null
   }
-  reviews.value = reviews.value.filter((item) => item.id !== review.id)
+}
+
+function handleBrokenImage(event) {
+  event.currentTarget.style.display = 'none'
 }
 </script>
 
@@ -158,7 +258,7 @@ function deleteReview(review) {
 
         <div class="review-search">
           <span>⌕</span>
-          <input v-model="query" type="search" placeholder="해운대, 감천문화마을 등 장소 검색" />
+          <input v-model="query" type="search" placeholder="해운대, 부산 감천문화마을 등 장소 검색" />
           <button @click="query = ''">초기화</button>
         </div>
       </div>
@@ -188,9 +288,9 @@ function deleteReview(review) {
       <div v-if="filteredPlaces.length" class="place-grid">
         <button
           v-for="place in filteredPlaces"
-          :key="`${place.slug}-${place.title}`"
+          :key="place.contentId"
           class="place-option"
-          :class="{ selected: selectedPlace?.title === place.title }"
+          :class="{ selected: selectedPlace?.contentId === place.contentId }"
           @click="selectPlace(place)"
         >
           <img :src="place.image" :alt="place.title" />
@@ -222,16 +322,29 @@ function deleteReview(review) {
 
         <div class="review-title-row">
           <div>
-            <h2>방문자 리뷰 <span>{{ selectedReviews.length }}</span></h2>
+            <h2>방문자 리뷰 <span>{{ reviews.length }}</span></h2>
           </div>
-          <button class="write-button" @click="openWriteForm">＋ 리뷰 작성</button>
+          <button class="write-button" :disabled="loading || !backendPlaceId" @click="openWriteForm">＋ 리뷰 작성</button>
+        </div>
+
+        <div v-if="actionError" class="review-state error-state">
+          <strong>{{ actionError }}</strong>
+        </div>
+        <div v-if="loading" class="review-state">리뷰를 불러오는 중입니다.</div>
+        <div v-else-if="error" class="review-state error-state">
+          <strong>{{ error }}</strong>
+          <button type="button" @click="loadReviews()">다시 시도</button>
         </div>
 
         <form v-if="formOpen" class="review-form" @submit.prevent="submitReview">
           <div class="form-heading">
             <div><span>WRITE A REVIEW</span><h3>{{ editingId ? '리뷰 수정하기' : `${selectedPlace.title} 리뷰 작성` }}</h3></div>
-            <button type="button" @click="formOpen = false">×</button>
+            <button type="button" :disabled="submitting" @click="closeForm">×</button>
           </div>
+          <label>
+            <span>닉네임</span>
+            <input v-model="form.nickname" :disabled="Boolean(editingId)" :required="!editingId" maxlength="30" placeholder="닉네임 입력" />
+          </label>
           <label>
             <span>제목</span>
             <input v-model="form.title" required maxlength="60" placeholder="방문 경험이 드러나는 제목을 적어주세요" />
@@ -254,31 +367,31 @@ function deleteReview(review) {
           </div>
           <label class="image-upload">
             <span>사진 1장</span>
-            <input ref="fileInput" type="file" accept="image/*" @change="handleImage" />
-            <div v-if="form.image"><img :src="form.image" alt="첨부 이미지 미리보기" /><b>사진 변경하기</b></div>
-            <div v-else><strong>＋</strong><b>방문 사진 선택하기</b><small>JPG, PNG · 1장</small></div>
+            <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" @change="handleImage" />
+            <div v-if="form.imagePreview"><img :src="form.imagePreview" alt="첨부 이미지 미리보기" /><b>사진 변경하기</b></div>
+            <div v-else><strong>＋</strong><b>방문 사진 선택하기</b><small>JPG, PNG, WEBP · 1장</small></div>
           </label>
-          <button class="submit-review" type="submit">{{ editingId ? '수정 완료' : '리뷰 등록' }}</button>
+          <button class="submit-review" type="submit" :disabled="submitting">{{ submitting ? '저장 중' : editingId ? '수정 완료' : '리뷰 등록' }}</button>
         </form>
 
-        <div v-if="selectedReviews.length" class="review-list">
-          <article v-for="review in selectedReviews" :key="review.id" class="review-item">
-            <img v-if="review.image" :src="review.image" :alt="review.title" />
+        <div v-if="!loading && !error && reviews.length" class="review-list">
+          <article v-for="review in reviews" :key="review.id" class="review-item">
+            <img v-if="review.image" :src="review.image" :alt="review.title" @error="handleBrokenImage" />
             <div class="review-content">
-              <div class="review-meta"><span>{{ '★'.repeat(review.rating) }}</span><small>{{ review.date }}</small></div>
+              <div class="review-meta"><span>{{ '★'.repeat(review.rating) }}</span><small>{{ review.nickname }} · {{ review.date }}</small></div>
               <h3>{{ review.title }}</h3>
               <p>{{ review.body }}</p>
               <div class="review-actions">
-                <button @click="editReview(review)">수정</button>
-                <button @click="deleteReview(review)">삭제</button>
+                <button :disabled="deletingId === review.id" @click="editReview(review)">수정</button>
+                <button :disabled="deletingId === review.id" @click="removeReview(review)">삭제</button>
               </div>
             </div>
           </article>
         </div>
-        <div v-else class="empty-reviews">
+        <div v-else-if="!loading && !error" class="empty-reviews">
           <strong>아직 등록된 리뷰가 없어요.</strong>
           <p>이 장소의 첫 번째 경험을 공유해 주세요.</p>
-          <button @click="openWriteForm">첫 리뷰 작성하기</button>
+          <button :disabled="!backendPlaceId" @click="openWriteForm">첫 리뷰 작성하기</button>
         </div>
       </div>
     </section>
@@ -331,10 +444,12 @@ function deleteReview(review) {
 .selected-place div > div { display: flex; gap: 14px; margin-top: 16px; align-items: center; }
 .selected-place small { color: #7793a6; }
 .review-title-row { display: flex; justify-content: space-between; align-items: flex-end; margin: 54px 0 20px; }
-.review-title-row p { margin: 0 0 5px; color: #168ac7; font-weight: 950; letter-spacing: .1em; }
 .review-title-row h2 { margin: 0; font-size: 30px; }
 .review-title-row h2 span { color: #168ac7; }
-.write-button, .submit-review, .empty-reviews button { border: 0; border-radius: 13px; background: #168ac7; color: #fff; padding: 13px 18px; font-weight: 900; cursor: pointer; }
+.write-button, .submit-review, .empty-reviews button, .review-state button { border: 0; border-radius: 13px; background: #168ac7; color: #fff; padding: 13px 18px; font-weight: 900; cursor: pointer; }
+.write-button:disabled, .submit-review:disabled, .empty-reviews button:disabled, .review-actions button:disabled { opacity: .58; cursor: not-allowed; }
+.review-state { border: 1px dashed #bad8ea; border-radius: 18px; padding: 24px; color: #607d91; background: #f8fcff; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.error-state { border-color: #efb8b8; color: #9c3d3d; background: #fff8f8; }
 .review-form { border: 1px solid #badcf1; border-radius: 24px; background: #f5fbff; margin-bottom: 22px; padding: 26px; display: grid; gap: 17px; }
 .form-heading { display: flex; justify-content: space-between; }
 .form-heading span { color: #168ac7; font-size: 11px; font-weight: 950; letter-spacing: .1em; }
@@ -358,7 +473,7 @@ function deleteReview(review) {
 .review-meta span { color: #f4ab32; letter-spacing: 2px; }
 .review-meta small { color: #8aa0ae; }
 .review-item h3 { margin: 9px 0 7px; font-size: 19px; }
-.review-item p { margin: 0; color: #607d91; line-height: 1.65; }
+.review-item p { margin: 0; color: #607d91; line-height: 1.65; white-space: pre-wrap; }
 .review-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 13px; }
 .review-actions button { border: 1px solid #cfdfeb; border-radius: 8px; background: #fff; color: #607d91; padding: 6px 10px; cursor: pointer; }
 .empty-reviews { border: 1px dashed #bad8ea; border-radius: 20px; padding: 52px; text-align: center; }
@@ -375,6 +490,7 @@ function deleteReview(review) {
   .selected-place > img { height: 220px; }
   .review-title-row { align-items: stretch; flex-direction: column; gap: 16px; }
   .form-row { grid-template-columns: 1fr; }
+  .review-state { align-items: stretch; flex-direction: column; }
   .review-item { grid-template-columns: 1fr; }
   .review-item > img { width: 100%; height: 210px; }
 }
