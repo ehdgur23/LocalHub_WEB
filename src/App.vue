@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, ref } from 'vue'
 import { categories, courses, heroImage } from './data'
+import { sendChatMessage } from './api/chat'
 import FestivalCalendar from './components/FestivalCalendar.vue'
 import ReviewBoard from './components/ReviewBoard.vue'
 import buriburiLogo from './assets/buriburi-logo.png'
@@ -12,6 +13,7 @@ const reviewDetailOpen = ref(false)
 const previousView = ref('search')
 const chatOpen = ref(false)
 const chatText = ref('')
+const chatLoading = ref(false)
 const chatMessages = ref([
   { from: 'bot', text: '안녕하세요! 부산 장소, 축제, 여행코스를 물어보세요.' }
 ])
@@ -57,17 +59,32 @@ function goBackFromDetail() {
   window.scrollTo({ top: 0 })
 }
 
-function sendChat() {
+async function sendChat() {
   const value = chatText.value.trim()
-  if (!value) return
+  if (!value || chatLoading.value) return
+
   chatMessages.value.push({ from: 'user', text: value })
   chatText.value = ''
-  window.setTimeout(() => {
-    chatMessages.value.push({
+  chatLoading.value = true
+
+  const loadingIndex = chatMessages.value.length
+  chatMessages.value.push({
+    from: 'bot',
+    text: '답변을 불러오는 중입니다...',
+    loading: true
+  })
+
+  try {
+    const answer = await sendChatMessage(value)
+    chatMessages.value[loadingIndex] = { from: 'bot', text: answer }
+  } catch {
+    chatMessages.value[loadingIndex] = {
       from: 'bot',
-      text: '현재는 프론트 시안의 예시 답변입니다. FastAPI /api/chat과 연결하면 부산 데이터 기반 답변을 제공할 수 있어요.'
-    })
-  }, 350)
+      text: '챗봇 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+    }
+  } finally {
+    chatLoading.value = false
+  }
 }
 </script>
 
@@ -266,13 +283,17 @@ function sendChat() {
         <button @click="chatOpen = false">×</button>
       </header>
       <div class="messages">
-        <p v-for="(message, index) in chatMessages" :key="index" :class="message.from">
+        <p
+          v-for="(message, index) in chatMessages"
+          :key="index"
+          :class="[message.from, { loading: message.loading }]"
+        >
           {{ message.text }}
         </p>
       </div>
       <form @submit.prevent="sendChat">
-        <input v-model="chatText" placeholder="예: 8월 축제 알려줘" />
-        <button>전송</button>
+        <input v-model="chatText" :disabled="chatLoading" placeholder="예: 8월 축제 알려줘" />
+        <button :disabled="chatLoading || !chatText.trim()">전송</button>
       </form>
     </section>
   </transition>
