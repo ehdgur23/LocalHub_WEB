@@ -96,7 +96,6 @@ async function sendChat() {
         <img :src="buriburiLogo" alt="BURIBURI" />
       </a>
       <nav>
-        <button @click="goHome">리뷰 게시판</button>
         <button :class="{ active: currentView === 'courses' }" @click="changeView('courses')">여행코스</button>
         <button :class="{ active: currentView === 'festival' }" @click="changeView('festival')">축제 일정</button>
       </nav>
