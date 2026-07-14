@@ -142,12 +142,14 @@ nav button:hover, nav button.active { border-bottom-color: var(--blue); opacity:
 .chat header small { opacity: .85; }
 .chat header button { border: 0; background: transparent; color: white; font-size: 25px; cursor: pointer; }
 .messages { padding: 15px; overflow-y: auto; background: #f5f8fb; }
-.messages p { max-width: 80%; padding: 11px 13px; border-radius: 15px; line-height: 1.45; font-size: 13px; }
+.messages p { max-width: 80%; padding: 11px 13px; border-radius: 15px; line-height: 1.45; font-size: 13px; white-space: pre-wrap; }
 .messages .bot { background: white; }
+.messages .loading { color: var(--muted); }
 .messages .user { margin-left: auto; background: var(--blue); color: white; }
 .chat form { display: flex; gap: 7px; padding: 12px; border-top: 1px solid var(--line); }
 .chat form input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
 .chat form button { border: 0; border-radius: 11px; background: var(--ink); color: white; padding: 0 14px; }
+.chat form input:disabled, .chat form button:disabled { opacity: .62; cursor: not-allowed; }
 .chat-enter-active,.chat-leave-active { transition: .2s ease; }
 .chat-enter-from,.chat-leave-to { opacity: 0; transform: translateY(12px) scale(.98); }
 
