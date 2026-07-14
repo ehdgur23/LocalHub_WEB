@@ -5,8 +5,11 @@ const props = defineProps({
   categories: {
     type: Array,
     required: true
-  }
+  },
+  detailOnly: Boolean,
+  showBack: Boolean
 })
+const emit = defineEmits(['detail-change', 'back'])
 
 const selectedCategory = ref('all')
 const query = ref('')
@@ -53,10 +56,18 @@ const selectedReviews = computed(() =>
 
 function selectPlace(place) {
   selectedPlace.value = place
+  emit('detail-change', true)
   formOpen.value = false
   editingId.value = null
   window.setTimeout(() => document.querySelector('#place-reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
 }
+
+function openPlace(place) {
+  const matched = allPlaces.value.find((item) => item.title === place.title) || place
+  selectPlace(matched)
+}
+
+defineExpose({ openPlace })
 
 function resetForm() {
   form.title = ''
@@ -138,8 +149,8 @@ function deleteReview(review) {
 </script>
 
 <template>
-  <div class="review-page">
-    <section class="review-hero">
+  <div class="review-page" :class="{ 'detail-only': detailOnly }">
+    <section v-if="!detailOnly" class="review-hero">
       <div class="container">
         <p>LOCAL REVIEW BOARD</p>
         <h1>부산의 진짜 경험을<br />장소별로 만나보세요.</h1>
@@ -147,13 +158,13 @@ function deleteReview(review) {
 
         <div class="review-search">
           <span>⌕</span>
-          <input v-model="query" type="search" placeholder="해운대, 감천문화마을, 음식점 등 장소 검색" />
+          <input v-model="query" type="search" placeholder="해운대, 감천문화마을 등 장소 검색" />
           <button @click="query = ''">초기화</button>
         </div>
       </div>
     </section>
 
-    <section class="container place-step">
+    <section v-if="!detailOnly" class="container place-step">
       <div class="step-heading">
         <span>STEP 01</span>
         <div>
@@ -196,6 +207,9 @@ function deleteReview(review) {
 
     <section v-if="selectedPlace" id="place-reviews" class="selected-section">
       <div class="container">
+        <button v-if="showBack" class="detail-back" type="button" @click="emit('back')">
+          <span aria-hidden="true">←</span> 이전
+        </button>
         <div class="selected-place">
           <img :src="selectedPlace.image" :alt="selectedPlace.title" />
           <div>
@@ -208,7 +222,6 @@ function deleteReview(review) {
 
         <div class="review-title-row">
           <div>
-            <p>STEP 02</p>
             <h2>방문자 리뷰 <span>{{ selectedReviews.length }}</span></h2>
           </div>
           <button class="write-button" @click="openWriteForm">＋ 리뷰 작성</button>
@@ -270,7 +283,7 @@ function deleteReview(review) {
       </div>
     </section>
 
-    <section v-else class="container select-guide">
+    <section v-else-if="!detailOnly" class="container select-guide">
       <span>↑</span>
       <strong>장소를 선택하면 리뷰가 여기에 표시됩니다.</strong>
     </section>
@@ -279,6 +292,7 @@ function deleteReview(review) {
 
 <style scoped>
 .review-page { background: #f8fcff; min-height: calc(100vh - 74px); padding-bottom: 100px; }
+.review-page.detail-only { min-height: 0; padding-bottom: 0; }
 .review-hero { padding: 72px 0 58px; background: radial-gradient(circle at 85% 10%, rgba(119,216,220,.36), transparent 28%), linear-gradient(135deg, #e7f5ff, #fff 68%); }
 .review-hero p { margin: 0 0 10px; color: #168ac7; font-weight: 950; letter-spacing: .12em; }
 .review-hero h1 { margin: 0; color: #073b66; font-size: clamp(40px, 6vw, 64px); line-height: 1.08; letter-spacing: -.06em; }
@@ -305,6 +319,9 @@ function deleteReview(review) {
 .place-option b { color: #168ac7; }
 .place-empty, .select-guide { border: 1px dashed #bcd9eb; border-radius: 22px; color: #718da0; padding: 50px; text-align: center; }
 .selected-section { margin-top: 72px; border-top: 1px solid #d7e9f4; background: #fff; padding: 64px 0 100px; scroll-margin-top: 74px; }
+.detail-only .selected-section { margin-top: 0; border-top: 0; }
+.detail-back { margin-bottom: 22px; border: 1px solid #c5deed; border-radius: 8px; background: #fff; color: #315c76; padding: 10px 14px; font-weight: 850; cursor: pointer; }
+.detail-back:hover { border-color: #168ac7; color: #168ac7; }
 .selected-place { border-radius: 26px; background: #e8f6ff; display: grid; grid-template-columns: 260px 1fr; gap: 26px; padding: 18px; }
 .selected-place > img { width: 100%; height: 190px; border-radius: 18px; object-fit: cover; }
 .selected-place > div { align-self: center; padding-right: 24px; }

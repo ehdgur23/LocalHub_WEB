@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { categories, courses, heroImage } from './data'
 import { sendChatMessage } from './api/chat'
 import FestivalCalendar from './components/FestivalCalendar.vue'
@@ -7,6 +7,10 @@ import ReviewBoard from './components/ReviewBoard.vue'
 import buriburiLogo from './assets/buriburi-logo.png'
 
 const currentView = ref('home')
+const homeQuery = ref('')
+const reviewBoard = ref(null)
+const reviewDetailOpen = ref(false)
+const previousView = ref('search')
 const chatOpen = ref(false)
 const chatText = ref('')
 const chatLoading = ref(false)
@@ -16,6 +20,16 @@ const chatMessages = ref([
 
 const homeCategories = computed(() => categories)
 const festivalCategory = computed(() => categories.find((category) => category.slug === 'festival'))
+const searchablePlaces = computed(() => categories.flatMap((category) =>
+  category.items.map((place) => ({ ...place, category: category.label, slug: category.slug }))
+))
+const homeSearchResults = computed(() => {
+  const keyword = homeQuery.value.trim().toLowerCase()
+  if (!keyword) return []
+  return searchablePlaces.value.filter((place) =>
+    `${place.title} ${place.area} ${place.category} ${place.text}`.toLowerCase().includes(keyword)
+  )
+})
 
 function scrollSection(slug, amount) {
   document.querySelector(`#track-${slug}`)?.scrollBy({ left: amount, behavior: 'smooth' })
@@ -23,7 +37,26 @@ function scrollSection(slug, amount) {
 
 function changeView(view) {
   currentView.value = view
+  reviewDetailOpen.value = false
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+async function openPlaceReviews(place) {
+  previousView.value = homeQuery.value.trim() ? 'search' : currentView.value
+  currentView.value = 'detail'
+  await nextTick()
+  reviewBoard.value?.openPlace(place)
+  window.scrollTo({ top: 0 })
+}
+
+function goToReviewBoard() {
+  changeView('reviews')
+}
+
+function goBackFromDetail() {
+  currentView.value = previousView.value === 'reviews' ? 'reviews' : 'home'
+  reviewDetailOpen.value = false
+  window.scrollTo({ top: 0 })
 }
 
 async function sendChat() {
@@ -62,7 +95,7 @@ async function sendChat() {
         <img :src="buriburiLogo" alt="BURIBURI" />
       </a>
       <nav>
-        <button :class="{ active: currentView === 'reviews' }" @click="changeView('reviews')">리뷰 게시판</button>
+        <button :class="{ active: currentView === 'reviews' || currentView === 'detail' }" @click="goToReviewBoard">리뷰 게시판</button>
         <button :class="{ active: currentView === 'courses' }" @click="changeView('courses')">여행코스</button>
         <button :class="{ active: currentView === 'festival' }" @click="changeView('festival')">축제 일정</button>
       </nav>
@@ -75,15 +108,44 @@ async function sendChat() {
         <p class="eyebrow">부산의 장소와 사람을 연결하는 로컬 커뮤니티</p>
         <h1>부산, 어디부터 가볼까요?</h1>
         <p class="hero-copy">
-          관광지부터 문화시설, 축제, 레포츠, 숙박, 쇼핑, 음식점까지<br />
+          관광지부터 문화시설, 축제, 레포츠, 숙박, 쇼핑까지<br />
           부산의 장소 정보와 실제 방문 후기를 한곳에서 만나보세요.
         </p>
+        <div class="search">
+          <span aria-hidden="true">⌕</span>
+          <input v-model="homeQuery" type="search" placeholder="장소명, 지역, 카테고리를 입력하세요" aria-label="부산 장소 검색" />
+          <button v-if="homeQuery" type="button" @click="homeQuery = ''">초기화</button>
+        </div>
       </div>
     </section>
 
+    <template v-if="currentView === 'home' && homeQuery.trim()">
+    <section v-if="homeQuery.trim()" class="container result-section">
+      <div class="section-title"><div><p>SEARCH RESULT</p><h2>‘{{ homeQuery }}’ 검색 결과 {{ homeSearchResults.length }}곳</h2></div></div>
+      <div v-if="homeSearchResults.length" class="result-grid">
+        <article v-for="place in homeSearchResults" :key="`${place.slug}-${place.title}`" class="card clickable-card" tabindex="0" role="button" @click="openPlaceReviews(place)" @keydown.enter="openPlaceReviews(place)">
+          <div class="card-image"><img :src="place.image" :alt="place.title" /><span>{{ place.category }}</span></div>
+          <p class="area">{{ place.area }}</p><h3>{{ place.title }}</h3><p class="card-text">{{ place.text }}</p>
+          <div class="rating"><strong>{{ place.rating.toFixed(1) }}</strong><span>리뷰 {{ place.reviews }}개</span></div>
+        </article>
+      </div>
+      <div v-else class="empty">입력한 조건에 맞는 장소가 없습니다.</div>
+    </section>
+    </template>
+
+    <ReviewBoard
+      v-if="currentView === 'detail'"
+      ref="reviewBoard"
+      :categories="categories"
+      detail-only
+      show-back
+      @back="goBackFromDetail"
+      @detail-change="reviewDetailOpen = $event"
+    />
+
     <ReviewBoard v-if="currentView === 'reviews'" :categories="categories" />
 
-    <template v-if="currentView === 'home'">
+    <template v-if="currentView === 'home' && !homeQuery.trim()">
     <section class="container busan-banner">
       <div class="banner" :style="{ backgroundImage: `url(${heroImage})` }">
         <div class="banner-shade"></div>
@@ -94,7 +156,6 @@ async function sendChat() {
             <a href="#places">부산 장소 둘러보기</a>
           </div>
         </div>
-        <div class="banner-badge"><strong>7</strong><span>개의 카테고리</span></div>
       </div>
     </section>
 

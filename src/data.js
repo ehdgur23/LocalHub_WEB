@@ -12,8 +12,7 @@ const generic = {
   festival: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1600&q=80',
   leisure: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?auto=format&fit=crop&w=1600&q=80',
   stay: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=80',
-  shopping: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1600&q=80',
-  dining: 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=1600&q=80'
+  shopping: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1600&q=80'
 }
 
 export const categories = [
@@ -87,18 +86,6 @@ export const categories = [
       { title: '국제시장', area: '중구', image: gamcheon, rating: 4.5, reviews: 106, text: '다양한 먹거리와 생활용품을 만나는 부산의 대표 시장.' },
       { title: '부평깡통시장', area: '중구', image: generic.shopping, rating: 4.6, reviews: 119, text: '야시장 먹거리와 활기찬 골목 분위기가 매력적인 시장.' },
       { title: '서면 지하상가', area: '부산진구', image: generic.shopping, rating: 4.2, reviews: 47, text: '패션과 잡화를 편리하게 둘러볼 수 있는 도심 쇼핑 공간.' }
-    ]
-  },
-  {
-    slug: 'dining',
-    label: '음식점',
-    icon: '♨',
-    subtitle: '부산의 맛과 분위기를 함께 경험하는 로컬 음식점',
-    items: [
-      { title: '해운대 원조할매국밥', area: '해운대구', image: generic.dining, rating: 4.6, reviews: 94, text: '든든한 돼지국밥 한 그릇으로 부산의 맛을 경험해 보세요.' },
-      { title: '기장 연화리 해녀촌', area: '기장군', image: generic.dining, rating: 4.7, reviews: 81, text: '바다를 바라보며 신선한 해산물을 즐기는 기장 대표 먹거리 장소.' },
-      { title: '남포동 씨앗호떡', area: '중구', image: generic.dining, rating: 4.5, reviews: 137, text: '고소한 씨앗을 가득 넣은 부산의 대표 길거리 간식.' },
-      { title: '광안리 오션뷰 다이닝', area: '수영구', image: generic.dining, rating: 4.4, reviews: 63, text: '광안대교 풍경과 함께 식사를 즐길 수 있는 바다 전망 음식점.' }
     ]
   }
 ]
