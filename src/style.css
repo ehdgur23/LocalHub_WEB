@@ -54,7 +54,10 @@ nav button:hover, nav button.active { border-bottom-color: var(--blue); opacity:
 }
 .search > span { font-size: 25px; }
 .search input { border: 0; outline: 0; min-width: 0; flex: 1; font-size: 17px; }
+.search input::-webkit-search-cancel-button,
+.search input::-webkit-search-decoration { display: none; -webkit-appearance: none; appearance: none; }
 .search button { border: 0; border-radius: 999px; background: #B9E0FD; color: var(--ink); font-weight: 950; padding: 14px 28px; cursor: pointer; }
+.search .clear-search { flex: none; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; font-size: 25px; line-height: 1; }
 .quick { display: flex; justify-content: center; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 18px; font-size: 13px; }
 .quick span { color: var(--muted); font-weight: 750; }
 .quick button { border: 1px solid var(--line); background: white; border-radius: 999px; padding: 7px 10px; cursor: pointer; }
@@ -91,7 +94,7 @@ nav button:hover, nav button.active { border-bottom-color: var(--blue); opacity:
 .section-buttons button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: white; cursor: pointer; }
 .card-track { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 8px; }
 .card-track::-webkit-scrollbar { display: none; }
-.card { min-width: 270px; width: 270px; scroll-snap-align: start; }
+.card { flex: 0 0 min(330px, calc(100vw - 56px)); width: min(330px, calc(100vw - 56px)); scroll-snap-align: start; }
 .clickable-card { cursor: pointer; border-radius: 18px; outline: none; }
 .clickable-card:focus-visible { box-shadow: 0 0 0 3px rgba(22,138,199,.35); }
 .result-grid .card { min-width: 0; width: auto; }

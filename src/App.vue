@@ -9,8 +9,6 @@ import buriburiLogo from './assets/buriburi-logo.png'
 const currentView = ref('home')
 const homeQuery = ref('')
 const reviewBoard = ref(null)
-const reviewDetailOpen = ref(false)
-const previousView = ref('search')
 const chatOpen = ref(false)
 const chatText = ref('')
 const chatLoading = ref(false)
@@ -31,31 +29,34 @@ const homeSearchResults = computed(() => {
   )
 })
 
-function scrollSection(slug, amount) {
-  document.querySelector(`#track-${slug}`)?.scrollBy({ left: amount, behavior: 'smooth' })
+function scrollSection(slug, direction) {
+  const track = document.querySelector(`#track-${slug}`)
+  const card = track?.querySelector('.card')
+  if (!track || !card) return
+
+  const gap = Number.parseFloat(getComputedStyle(track).gap) || 0
+  track.scrollBy({ left: direction * (card.getBoundingClientRect().width + gap), behavior: 'smooth' })
 }
 
 function changeView(view) {
   currentView.value = view
-  reviewDetailOpen.value = false
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+function goHome() {
+  homeQuery.value = ''
+  changeView('home')
+}
+
 async function openPlaceReviews(place) {
-  previousView.value = homeQuery.value.trim() ? 'search' : currentView.value
   currentView.value = 'detail'
   await nextTick()
   reviewBoard.value?.openPlace(place)
   window.scrollTo({ top: 0 })
 }
 
-function goToReviewBoard() {
-  changeView('reviews')
-}
-
 function goBackFromDetail() {
-  currentView.value = previousView.value === 'reviews' ? 'reviews' : 'home'
-  reviewDetailOpen.value = false
+  currentView.value = 'home'
   window.scrollTo({ top: 0 })
 }
 
@@ -91,11 +92,11 @@ async function sendChat() {
 <template>
   <header class="header">
     <div class="container header-inner">
-      <a class="brand" href="#top" aria-label="BURIBURI 홈" @click.prevent="changeView('home')">
+      <a class="brand" href="#top" aria-label="BURIBURI 홈" @click.prevent="goHome">
         <img :src="buriburiLogo" alt="BURIBURI" />
       </a>
       <nav>
-        <button :class="{ active: currentView === 'reviews' || currentView === 'detail' }" @click="goToReviewBoard">리뷰 게시판</button>
+        <button @click="goHome">리뷰 게시판</button>
         <button :class="{ active: currentView === 'courses' }" @click="changeView('courses')">여행코스</button>
         <button :class="{ active: currentView === 'festival' }" @click="changeView('festival')">축제 일정</button>
       </nav>
@@ -114,7 +115,7 @@ async function sendChat() {
         <div class="search">
           <span aria-hidden="true">⌕</span>
           <input v-model="homeQuery" type="search" placeholder="장소명, 지역, 카테고리를 입력하세요" aria-label="부산 장소 검색" />
-          <button v-if="homeQuery" type="button" @click="homeQuery = ''">초기화</button>
+          <button v-if="homeQuery" class="clear-search" type="button" aria-label="검색어 지우기" title="검색어 지우기" @click="homeQuery = ''">×</button>
         </div>
       </div>
     </section>
@@ -140,10 +141,7 @@ async function sendChat() {
       detail-only
       show-back
       @back="goBackFromDetail"
-      @detail-change="reviewDetailOpen = $event"
     />
-
-    <ReviewBoard v-if="currentView === 'reviews'" :categories="categories" />
 
     <template v-if="currentView === 'home' && !homeQuery.trim()">
     <section class="container busan-banner">
@@ -175,16 +173,24 @@ async function sendChat() {
           <h2>{{ category.subtitle }}</h2>
         </div>
         <div class="section-buttons">
-          <button @click="scrollSection(category.slug, -590)">←</button>
-          <button @click="scrollSection(category.slug, 590)">→</button>
+          <button type="button" :aria-label="`${category.label} 이전 장소`" @click="scrollSection(category.slug, -1)">←</button>
+          <button type="button" :aria-label="`${category.label} 다음 장소`" @click="scrollSection(category.slug, 1)">→</button>
         </div>
       </div>
 
       <div :id="`track-${category.slug}`" class="card-track">
-        <article v-for="place in category.items" :key="place.title" class="card">
+        <article
+          v-for="place in category.items"
+          :key="place.title"
+          class="card clickable-card"
+          tabindex="0"
+          role="button"
+          @click="openPlaceReviews({ ...place, category: category.label, slug: category.slug })"
+          @keydown.enter="openPlaceReviews({ ...place, category: category.label, slug: category.slug })"
+        >
           <div class="card-image">
             <img :src="place.image" :alt="place.title" loading="lazy" />
-            <button class="heart" aria-label="저장">♡</button>
+            <button class="heart" type="button" aria-label="저장" @click.stop>♡</button>
             <span>{{ category.label }}</span>
           </div>
           <p class="area">{{ place.area }}</p>
