@@ -35,7 +35,7 @@ export const categories = [
     subtitle: '전시와 건축, 지역의 이야기를 만나는 문화 공간',
     items: [
       { title: '부산시립미술관', contentId: '130166', area: '해운대구', image: 'http://tong.visitkorea.or.kr/cms/resource/62/2712662_image2_1.jpg', rating: 4.5, reviews: 52, text: '현대미술 전시와 문화 프로그램을 편안하게 즐겨보세요.' },
-      { title: '뮤지엄 원', contentId: '2650801', area: '해운대구', image: 'https://tong.visitkorea.or.kr/cms/resource/01/3493601_image2_1.jpg', rating: 4.7, reviews: 65, text: '미디어아트와 전시를 감각적으로 만나는 해운대 문화 공간.' },
+      { title: '부산 영화의 전당', contentId: '2456837', area: '해운대구', image: 'http://tong.visitkorea.or.kr/cms/resource/52/3035052_image2_1.jpg', rating: 4.7, reviews: 65, text: '독특한 건축미와 다양한 영화 프로그램을 만나는 해운대 문화 공간.' },
       { title: '국립해양박물관', contentId: '1825843', area: '영도구', image: 'https://tong.visitkorea.or.kr/cms/resource/96/3498596_image2_1.jpg', rating: 4.8, reviews: 91, text: '바다와 해양문화를 전시와 체험으로 만나는 가족 여행 장소.' },
       { title: '부산현대미술관', contentId: '2605688', area: '사하구', image: 'https://tong.visitkorea.or.kr/cms/resource/95/3506195_image2_1.jpg', rating: 4.4, reviews: 43, text: '을숙도의 자연과 동시대 미술을 함께 즐기는 공간.' }
     ]
