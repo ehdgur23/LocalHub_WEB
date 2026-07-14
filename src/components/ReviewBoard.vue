@@ -7,7 +7,8 @@ import {
   getPost,
   getPostImageUrl,
   getPosts,
-  updatePost
+  updatePost,
+  verifyPostPassword
 } from '../api/review'
 
 const props = defineProps({
@@ -33,6 +34,7 @@ const error = ref('')
 const actionError = ref('')
 const submitting = ref(false)
 const deletingId = ref(null)
+const verifyingReviewId = ref(null)
 const requestToken = ref(0)
 
 const form = reactive({
@@ -121,6 +123,7 @@ function selectPlace(place) {
   selectedPlace.value = place
   emit('detail-change', true)
   formOpen.value = false
+  verifyingReviewId.value = null
   resetForm()
   loadReviews(place)
   window.setTimeout(() => document.querySelector('#place-reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
@@ -194,6 +197,7 @@ async function submitReview() {
 
   submitting.value = true
   actionError.value = ''
+  const wasEditing = Boolean(editingId.value)
   try {
     if (editingId.value) {
       await updatePost(editingId.value, buildFormData())
@@ -204,14 +208,38 @@ async function submitReview() {
     await loadReviews()
   } catch (err) {
     actionError.value = err instanceof Error ? err.message : '리뷰를 저장하지 못했습니다.'
+    if (wasEditing) {
+      closeForm()
+    }
   } finally {
     submitting.value = false
   }
 }
 
-function editReview(review) {
+async function editReview(review) {
+  if (verifyingReviewId.value) return
+
   const password = window.prompt('작성할 때 입력한 비밀번호를 입력해 주세요.')
   if (password === null) return
+  if (!password.trim()) {
+    const message = '비밀번호를 입력해 주세요.'
+    actionError.value = message
+    window.alert(message)
+    return
+  }
+
+  verifyingReviewId.value = review.id
+  actionError.value = ''
+  try {
+    await verifyPostPassword(review.id, password)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '비밀번호를 확인하지 못했습니다.'
+    actionError.value = message
+    window.alert(message)
+    return
+  } finally {
+    verifyingReviewId.value = null
+  }
 
   editingId.value = review.id
   form.nickname = review.nickname
@@ -382,7 +410,9 @@ function handleBrokenImage(event) {
               <h3>{{ review.title }}</h3>
               <p>{{ review.body }}</p>
               <div class="review-actions">
-                <button :disabled="deletingId === review.id" @click="editReview(review)">수정</button>
+                <button :disabled="deletingId === review.id || verifyingReviewId === review.id" @click="editReview(review)">
+                  {{ verifyingReviewId === review.id ? '확인 중' : '수정' }}
+                </button>
                 <button :disabled="deletingId === review.id" @click="removeReview(review)">삭제</button>
               </div>
             </div>

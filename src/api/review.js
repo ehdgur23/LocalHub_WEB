@@ -52,6 +52,20 @@ export function updatePost(postId, formData) {
   })
 }
 
+export async function verifyPostPassword(postId, password) {
+  const response = await fetch(joinUrl(API_BASE_URL, `/posts/${encodeURIComponent(postId)}/verify-password`), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ password })
+  })
+
+  if (!response.ok) {
+    throw new Error(await parseError(response))
+  }
+}
+
 export async function deletePost(postId, password) {
   const response = await fetch(joinUrl(API_BASE_URL, `/posts/${encodeURIComponent(postId)}`), {
     method: 'DELETE',
