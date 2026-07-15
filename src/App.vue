@@ -1,8 +1,9 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { categoryDefinitions, heroImage } from './data'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { categoryDefinitions, courses, heroImage } from './data'
+
 import { sendChatMessage } from './api/chat'
-import { getPlacesByCategory } from './api/places'
+import { getPlacesByCategory, searchPlaces } from './api/places'
 import FestivalCalendar from './components/FestivalCalendar.vue'
 import ReviewBoard from './components/ReviewBoard.vue'
 import RandomRouteView from './components/RandomRouteView.vue'
@@ -14,6 +15,15 @@ const reviewBoard = ref(null)
 const chatOpen = ref(false)
 const chatText = ref('')
 const chatLoading = ref(false)
+const searchResults = ref([])
+const searchTotal = ref(0)
+const searchPage = ref(1)
+const searchTotalPages = ref(0)
+const searchLoading = ref(false)
+const searchLoadingMore = ref(false)
+const searchError = ref('')
+let searchTimer
+let searchRequestId = 0
 const categoryTracks = new Map()
 const categories = ref(categoryDefinitions.map((category) => ({
   ...category,
@@ -33,16 +43,6 @@ const chatMessages = ref([
 ])
 
 const homeCategories = computed(() => categories.value)
-const searchablePlaces = computed(() => categories.value.flatMap((category) =>
-  category.items.map((place) => ({ ...place, category: category.label, slug: category.slug }))
-))
-const homeSearchResults = computed(() => {
-  const keyword = homeQuery.value.trim().toLowerCase()
-  if (!keyword) return []
-  return searchablePlaces.value.filter((place) =>
-    `${place.title} ${place.area} ${place.category} ${place.text}`.toLowerCase().includes(keyword)
-  )
-})
 
 function toPlace(item, category) {
   const rating = Number(item.avg_rating ?? 0)
@@ -61,6 +61,30 @@ function toPlace(item, category) {
     slug: category.slug
   }
 }
+
+function toSearchPlace(item) {
+  const category = categoryDefinitions.find((definition) => definition.contentTypeId === item.contentTypeId) || { label: item.category || '장소', slug: 'search', image: '' }
+  return toPlace(item, category)
+}
+
+async function runSearch(page = 1, append = false) {
+  clearTimeout(searchTimer)
+  const keyword = homeQuery.value.trim()
+  if (!keyword) return
+  const requestId = ++searchRequestId
+  if (append) searchLoadingMore.value = true
+  else { searchLoading.value = true; searchError.value = ''; searchResults.value = [] }
+  try {
+    const result = await searchPlaces(keyword, page)
+    if (requestId !== searchRequestId) return
+    const items = result.items.map(toSearchPlace)
+    searchResults.value = append ? [...searchResults.value, ...items.filter((item) => !searchResults.value.some((place) => place.contentId === item.contentId))] : items
+    searchTotal.value = result.total; searchPage.value = result.page; searchTotalPages.value = result.total_pages
+  } catch (error) { if (requestId === searchRequestId) searchError.value = error instanceof Error ? error.message : '검색 결과를 불러오지 못했습니다.' } finally { if (requestId === searchRequestId) { searchLoading.value = false; searchLoadingMore.value = false } }
+}
+
+function loadMoreSearchResults() { if (!searchLoadingMore.value && searchPage.value < searchTotalPages.value) runSearch(searchPage.value + 1, true) }
+watch(homeQuery, (value) => { clearTimeout(searchTimer); if (!value.trim()) { searchRequestId++; searchResults.value=[]; searchTotal.value=0; searchError.value=''; return }; searchTimer = window.setTimeout(() => runSearch(), 300) })
 
 function normalizeImageUrl(url) {
   if (!url) return ''
@@ -212,6 +236,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', syncAllCategoryIndexes)
+  clearTimeout(searchTimer)
 })
 
 function changeView(view) {
@@ -289,7 +314,7 @@ async function sendChat() {
         </p>
         <div class="search">
           <span aria-hidden="true">⌕</span>
-          <input v-model="homeQuery" type="search" placeholder="장소명, 지역, 카테고리를 입력하세요" aria-label="부산 장소 검색" />
+          <input v-model="homeQuery" type="search" placeholder="장소명, 지역, 카테고리를 입력하세요" aria-label="부산 장소 검색" :aria-busy="searchLoading" @keydown.enter.prevent="runSearch()" />
           <button v-if="homeQuery" class="clear-search" type="button" aria-label="검색어 지우기" title="검색어 지우기" @click="homeQuery = ''">×</button>
         </div>
       </div>
@@ -297,15 +322,18 @@ async function sendChat() {
 
     <template v-if="currentView === 'home' && homeQuery.trim()">
     <section v-if="homeQuery.trim()" class="container result-section">
-      <div class="section-title"><div><p>SEARCH RESULT</p><h2>‘{{ homeQuery }}’ 검색 결과 {{ homeSearchResults.length }}곳</h2></div></div>
-      <div v-if="homeSearchResults.length" class="result-grid">
-        <article v-for="place in homeSearchResults" :key="`${place.slug}-${place.contentId}`" class="card clickable-card" tabindex="0" role="button" @click="openPlaceReviews(place)" @keydown.enter="openPlaceReviews(place)">
+      <div class="section-title"><div><p>SEARCH RESULT</p><h2>‘{{ homeQuery }}’ 검색 결과 {{ searchTotal }}곳</h2></div></div>
+      <div v-if="searchLoading" class="empty" aria-live="polite">검색 결과를 불러오는 중입니다.</div>
+      <div v-else-if="searchError" class="empty" aria-live="polite">{{ searchError }} <button type="button" @click="runSearch()">다시 시도</button></div>
+      <div v-else-if="searchResults.length" class="result-grid">
+        <article v-for="place in searchResults" :key="`${place.slug}-${place.contentId}`" class="card clickable-card" tabindex="0" role="button" @click="openPlaceReviews(place)" @keydown.enter="openPlaceReviews(place)">
           <div class="card-image"><img :src="place.image" :alt="place.title" @error="handlePlaceImageError($event, place.fallbackImage)" /><span>{{ place.category }}</span></div>
           <p class="area">{{ place.area }}</p><h3>{{ place.title }}</h3>
           <div class="rating">★ {{ place.rating.toFixed(1) }} · 리뷰 {{ place.reviews }}개</div>
         </article>
       </div>
-      <div v-else class="empty">입력한 조건에 맞는 장소가 없습니다.</div>
+      <div v-else class="empty" aria-live="polite">입력한 조건에 맞는 장소가 없습니다.</div>
+      <div v-if="searchResults.length" class="search-more"><p>검색 결과 {{ searchTotal }}곳</p><button v-if="searchPage < searchTotalPages" type="button" :disabled="searchLoadingMore" @click="loadMoreSearchResults">{{ searchLoadingMore ? '불러오는 중...' : '더 보기' }}</button></div>
     </section>
     </template>
 
