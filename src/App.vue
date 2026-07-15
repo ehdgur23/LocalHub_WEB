@@ -45,14 +45,17 @@ const homeSearchResults = computed(() => {
 })
 
 function toPlace(item, category) {
+  const rating = Number(item.avg_rating ?? 0)
+  const reviews = Number(item.post_cnt ?? 0)
+
   return {
     title: item.title,
     contentId: String(item.content_id),
     area: item.address,
     image: normalizeImageUrl(item.first_image) || category.image,
     fallbackImage: category.image,
-    rating: 0,
-    reviews: 0,
+    rating: Number.isFinite(rating) ? rating : 0,
+    reviews: Number.isFinite(reviews) ? reviews : 0,
     text: item.address,
     category: item.category || category.label,
     slug: category.slug
@@ -294,8 +297,8 @@ async function sendChat() {
       <div v-if="homeSearchResults.length" class="result-grid">
         <article v-for="place in homeSearchResults" :key="`${place.slug}-${place.contentId}`" class="card clickable-card" tabindex="0" role="button" @click="openPlaceReviews(place)" @keydown.enter="openPlaceReviews(place)">
           <div class="card-image"><img :src="place.image" :alt="place.title" @error="handlePlaceImageError($event, place.fallbackImage)" /><span>{{ place.category }}</span></div>
-          <p class="area">{{ place.area }}</p><h3>{{ place.title }}</h3><p class="card-text">{{ place.text }}</p>
-          <div v-if="place.rating > 0" class="rating"><strong>{{ place.rating.toFixed(1) }}</strong><span>리뷰 {{ place.reviews }}개</span></div>
+          <p class="area">{{ place.area }}</p><h3>{{ place.title }}</h3>
+          <div class="rating">★ {{ place.rating.toFixed(1) }} · 리뷰 {{ place.reviews }}개</div>
         </article>
       </div>
       <div v-else class="empty">입력한 조건에 맞는 장소가 없습니다.</div>
@@ -316,11 +319,8 @@ async function sendChat() {
       <div class="banner" :style="{ backgroundImage: `url(${heroImage})` }">
         <div class="banner-shade"></div>
         <div class="banner-copy">
-          <p>LOCALHUB BUSAN</p>
+          <p>BUSAN REVIEW, BURIBURI</p>
           <h2>바다와 도시가 만나는 곳,<br />부산을 더 깊게 발견하세요.</h2>
-          <div>
-            <a href="#places">부산 장소 둘러보기</a>
-          </div>
         </div>
       </div>
     </section>
@@ -361,18 +361,12 @@ async function sendChat() {
         >
           <div class="card-image">
             <img :src="place.image" :alt="place.title" :loading="category.items.indexOf(place) < 4 ? 'eager' : 'lazy'" @error="handlePlaceImageError($event, place.fallbackImage)" />
-            <button class="heart" type="button" aria-label="저장" @click.stop>♡</button>
             <span>{{ category.label }}</span>
           </div>
           <p class="area">{{ place.area }}</p>
           <h3>{{ place.title }}</h3>
-          <p class="card-text">{{ place.text }}</p>
           <p v-if="place.period" class="period">{{ place.period }}</p>
-          <div v-if="place.rating > 0" class="rating">
-            <strong>{{ place.rating.toFixed(1) }}</strong>
-            <i v-for="n in 5" :key="n"></i>
-            <span>({{ place.reviews }})</span>
-          </div>
+          <div class="rating">★ {{ place.rating.toFixed(1) }} · 리뷰 {{ place.reviews }}개</div>
         </article>
       </div>
       <div v-if="category.loadingMore" class="category-more-status" aria-live="polite">다음 장소를 불러오는 중입니다.</div>

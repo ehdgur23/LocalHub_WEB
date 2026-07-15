@@ -77,8 +77,6 @@ nav button:hover, nav button.active { border-bottom-color: var(--blue); opacity:
 .banner-copy { position: relative; z-index: 2; color: white; padding: 48px; }
 .banner-copy > p { color: var(--mint); letter-spacing: .15em; font-weight: 950; }
 .banner-copy h2 { margin: 0; font-size: clamp(35px, 5vw, 58px); line-height: 1.12; letter-spacing: -.055em; }
-.banner-copy div { margin-top: 27px; display: flex; gap: 10px; flex-wrap: wrap; }
-.banner-copy a { text-decoration: none; border-radius: 999px; background: white; color: var(--ink); padding: 13px 18px; font-weight: 900; }
 .banner-badge { position: absolute; z-index: 2; top: 32px; right: 32px; width: 108px; height: 108px; border-radius: 50%; background: var(--mint); display: grid; place-content: center; text-align: center; color: #003c31; }
 .banner-badge strong { font-size: 36px; line-height: 1; }
 .banner-badge span { font-size: 12px; font-weight: 850; }
@@ -108,14 +106,10 @@ nav button:hover, nav button.active { border-bottom-color: var(--blue); opacity:
 .card-image img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s ease; }
 .card:hover img { transform: scale(1.035); }
 .card-image > span { position: absolute; left: 12px; bottom: 12px; background: rgba(255,255,255,.94); padding: 6px 9px; border-radius: 999px; font-size: 11px; font-weight: 850; }
-.heart { position: absolute; right: 11px; top: 11px; width: 38px; height: 38px; border: 0; border-radius: 50%; background: white; font-size: 23px; cursor: pointer; box-shadow: 0 5px 16px rgba(0,0,0,.14); }
 .area { margin: 10px 0 4px; color: var(--blue); font-size: 12px; font-weight: 850; }
 .card h3 { margin: 0; font-size: 18px; letter-spacing: -.03em; }
-.card-text { margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .period { margin: 8px 0 0; color: #ad3f1d; font-weight: 850; font-size: 12px; }
-.rating { display: flex; align-items: center; gap: 3px; margin-top: 9px; color: var(--muted); font-size: 12px; }
-.rating strong { color: var(--ink); margin-right: 2px; }
-.rating i { width: 9px; height: 9px; border-radius: 50%; background: #0faa70; }
+.rating { min-height: 18px; margin-top: 9px; color: var(--muted); font-size: 12px; }
 
 .course-section { margin-top: 60px; padding: 78px 0; background: #073b66; color: white; }
 .course-section.standalone { margin-top: 0; }
