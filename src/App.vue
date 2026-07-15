@@ -349,7 +349,7 @@ async function sendChat() {
   <transition name="chat">
     <section v-if="chatOpen" class="chat">
       <header>
-        <div><strong>LocalHub 챗봇</strong><small>부산 정보를 물어보세요</small></div>
+        <div><strong>BURIBURI 챗봇</strong><small>부산 정보를 물어보세요</small></div>
         <button @click="chatOpen = false">×</button>
       </header>
       <div class="messages">
