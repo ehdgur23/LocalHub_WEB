@@ -43,13 +43,34 @@ function toPlace(item, category) {
     title: item.title,
     contentId: String(item.content_id),
     area: item.address,
-    image: item.first_image || category.image,
+    image: normalizeImageUrl(item.first_image) || category.image,
+    fallbackImage: category.image,
     rating: 0,
     reviews: 0,
     text: item.address,
     category: item.category || category.label,
     slug: category.slug
   }
+}
+
+function normalizeImageUrl(url) {
+  if (!url) return ''
+  if (url.startsWith('http://tong.visitkorea.or.kr/')) {
+    return `https://${url.slice('http://'.length)}`
+  }
+  return url
+}
+
+function handlePlaceImageError(event, fallbackImage) {
+  const image = event.currentTarget
+  if (image.dataset.fallbackApplied === 'true') return
+
+  image.dataset.fallbackApplied = 'true'
+  if (!fallbackImage) {
+    image.style.display = 'none'
+    return
+  }
+  image.src = fallbackImage
 }
 
 async function loadCategory(category, page = 1) {
@@ -119,10 +140,10 @@ async function sendChat() {
   try {
     const answer = await sendChatMessage(value)
     chatMessages.value[loadingIndex] = { from: 'bot', text: answer }
-  } catch {
+  } catch (error) {
     chatMessages.value[loadingIndex] = {
       from: 'bot',
-      text: '챗봇 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+      text: error instanceof Error ? error.message : '챗봇 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'
     }
   } finally {
     chatLoading.value = false
@@ -165,7 +186,7 @@ async function sendChat() {
       <div class="section-title"><div><p>SEARCH RESULT</p><h2>‘{{ homeQuery }}’ 검색 결과 {{ homeSearchResults.length }}곳</h2></div></div>
       <div v-if="homeSearchResults.length" class="result-grid">
         <article v-for="place in homeSearchResults" :key="`${place.slug}-${place.title}`" class="card clickable-card" tabindex="0" role="button" @click="openPlaceReviews(place)" @keydown.enter="openPlaceReviews(place)">
-          <div class="card-image"><img :src="place.image" :alt="place.title" /><span>{{ place.category }}</span></div>
+          <div class="card-image"><img :src="place.image" :alt="place.title" @error="handlePlaceImageError($event, place.fallbackImage)" /><span>{{ place.category }}</span></div>
           <p class="area">{{ place.area }}</p><h3>{{ place.title }}</h3><p class="card-text">{{ place.text }}</p>
           <div v-if="place.rating > 0" class="rating"><strong>{{ place.rating.toFixed(1) }}</strong><span>리뷰 {{ place.reviews }}개</span></div>
         </article>
@@ -219,7 +240,7 @@ async function sendChat() {
       </div>
 
       <div v-if="category.loading" class="category-state">장소 목록을 불러오는 중입니다.</div>
-      <div v-else-if="category.error" class="category-state">{{ category.error }}</div>
+      <div v-else-if="category.error" class="category-state"><span>{{ category.error }}</span><button type="button" @click="loadCategory(category, category.page)">다시 시도</button></div>
       <div v-else-if="!category.items.length" class="category-state">표시할 장소가 없습니다.</div>
       <div v-else :id="`track-${category.slug}`" class="card-track">
         <article
@@ -232,7 +253,7 @@ async function sendChat() {
           @keydown.enter="openPlaceReviews({ ...place, category: category.label, slug: category.slug })"
         >
           <div class="card-image">
-            <img :src="place.image" :alt="place.title" loading="lazy" />
+            <img :src="place.image" :alt="place.title" loading="lazy" @error="handlePlaceImageError($event, place.fallbackImage)" />
             <button class="heart" type="button" aria-label="저장" @click.stop>♡</button>
             <span>{{ category.label }}</span>
           </div>

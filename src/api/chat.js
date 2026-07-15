@@ -1,7 +1,13 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhub-server.onrender.com'
+import { API_BASE_URL, joinUrl } from './config'
 
-function joinUrl(baseUrl, path) {
-  return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
+async function parseError(response) {
+  try {
+    const data = await response.json()
+    if (typeof data?.detail === 'string') return data.detail
+  } catch {
+    // Ignore non-JSON error responses.
+  }
+  return '챗봇 요청을 처리하지 못했습니다.'
 }
 
 export async function sendChatMessage(query) {
@@ -14,12 +20,12 @@ export async function sendChatMessage(query) {
   })
 
   if (!response.ok) {
-    throw new Error('Chat request failed')
+    throw new Error(await parseError(response))
   }
 
   const data = await response.json()
   if (!data?.answer) {
-    throw new Error('Chat response is missing an answer')
+    throw new Error('챗봇 응답을 받지 못했습니다.')
   }
 
   return data.answer

@@ -293,6 +293,18 @@ async function removeReview(review) {
 function handleBrokenImage(event) {
   event.currentTarget.style.display = 'none'
 }
+
+function handlePlaceImageError(event, fallbackImage) {
+  const image = event.currentTarget
+  if (image.dataset.fallbackApplied === 'true') return
+
+  image.dataset.fallbackApplied = 'true'
+  if (!fallbackImage) {
+    image.style.display = 'none'
+    return
+  }
+  image.src = fallbackImage
+}
 </script>
 
 <template>
@@ -340,7 +352,7 @@ function handleBrokenImage(event) {
           :class="{ selected: selectedPlace?.contentId === place.contentId }"
           @click="selectPlace(place)"
         >
-          <img :src="place.image" :alt="place.title" />
+          <img :src="place.image" :alt="place.title" @error="handlePlaceImageError($event, place.fallbackImage)" />
           <span>
             <small>{{ place.category }} · {{ place.area }}</small>
             <strong>{{ place.title }}</strong>
@@ -358,7 +370,7 @@ function handleBrokenImage(event) {
           <span aria-hidden="true">←</span> 이전
         </button>
         <div class="selected-place">
-          <img :src="selectedPlace.image" :alt="selectedPlace.title" />
+          <img :src="selectedPlace.image" :alt="selectedPlace.title" @error="handlePlaceImageError($event, selectedPlace.fallbackImage)" />
           <div>
             <span>{{ selectedPlace.category }} · {{ selectedPlace.area }}</span>
             <h2>{{ selectedPlace.title }}</h2>

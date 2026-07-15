@@ -1,8 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhub-server.onrender.com'
-
-function joinUrl(baseUrl, path) {
-  return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
-}
+import { API_BASE_URL, joinUrl } from './config'
 
 async function parseError(response) {
   try {

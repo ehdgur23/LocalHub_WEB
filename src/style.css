@@ -93,7 +93,8 @@ nav button:hover, nav button.active { border-bottom-color: var(--blue); opacity:
 .section-buttons { display: flex; gap: 8px; }
 .section-buttons button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: white; cursor: pointer; }
 .section-buttons button:disabled { opacity: .45; cursor: not-allowed; }
-.category-state { min-height: 180px; display: grid; place-items: center; border: 1px dashed var(--line); border-radius: 18px; color: var(--muted); }
+.category-state { min-height: 180px; display: grid; place-items: center; gap: 12px; border: 1px dashed var(--line); border-radius: 18px; color: var(--muted); }
+.category-state button { border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--accent); padding: 8px 12px; cursor: pointer; }
 .card-track { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 8px; }
 .card-track::-webkit-scrollbar { display: none; }
 .card { flex: 0 0 min(330px, calc(100vw - 56px)); width: min(330px, calc(100vw - 56px)); scroll-snap-align: start; }
