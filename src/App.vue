@@ -32,7 +32,6 @@ const chatMessages = ref([
 ])
 
 const homeCategories = computed(() => categories.value)
-const festivalCategory = computed(() => categories.value.find((category) => category.slug === 'festival'))
 const searchablePlaces = computed(() => categories.value.flatMap((category) =>
   category.items.map((place) => ({ ...place, category: category.label, slug: category.slug }))
 ))
@@ -435,7 +434,7 @@ async function sendChat() {
       </div>
     </section>
 
-    <template v-if="currentView === 'festival' && festivalCategory">
+    <template v-if="currentView === 'festival'">
       <section class="page-heading container">
         <p>FESTIVAL & EVENTS</p>
         <h1>부산 축제 일정</h1>
@@ -443,7 +442,7 @@ async function sendChat() {
       </section>
 
       <section class="container calendar-section">
-        <FestivalCalendar :festivals="festivalCategory.items" />
+        <FestivalCalendar />
       </section>
     </template>
 
