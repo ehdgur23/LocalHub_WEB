@@ -1,10 +1,12 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { categoryDefinitions, courses, heroImage } from './data'
+
 import { sendChatMessage } from './api/chat'
 import { getPlacesByCategory, searchPlaces } from './api/places'
 import FestivalCalendar from './components/FestivalCalendar.vue'
 import ReviewBoard from './components/ReviewBoard.vue'
+import RandomRouteView from './components/RandomRouteView.vue'
 import buriburiLogo from './assets/buriburi-logo.png'
 
 const currentView = ref('home')
@@ -404,13 +406,15 @@ async function sendChat() {
     </section>
     </template>
 
-    <section v-if="currentView === 'courses'" class="page-heading container">
+    <RandomRouteView v-if="currentView === 'courses'" />
+
+    <section v-if="false" class="page-heading container">
       <p>TRIP COURSE</p>
       <h1>부산 여행코스</h1>
       <span>테마와 동선을 확인하고 나에게 맞는 부산 여행을 골라보세요.</span>
     </section>
 
-    <section v-if="currentView === 'courses'" id="courses" class="course-section standalone">
+    <section v-if="false" id="courses" class="course-section standalone">
       <div class="container">
         <div class="course-heading">
           <div>
