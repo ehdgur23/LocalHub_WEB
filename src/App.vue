@@ -17,6 +17,7 @@ const categoryTracks = new Map()
 const categories = ref(categoryDefinitions.map((category) => ({
   ...category,
   items: [],
+  currentIndex: 0,
   nextPage: 1,
   totalPages: 0,
   loadingInitial: false,
@@ -24,8 +25,7 @@ const categories = ref(categoryDefinitions.map((category) => ({
   error: '',
   moreError: '',
   loadedPages: [],
-  hasPreviousCard: false,
-  hasNextCard: false
+  isNavigating: false
 })))
 const chatMessages = ref([
   { from: 'bot', text: '안녕하세요! 부산 장소, 축제, 여행코스를 물어보세요.' }
@@ -67,6 +67,7 @@ async function loadInitialCategory(category) {
   try {
     const result = await getPlacesByCategory(category.contentTypeId, 1)
     category.items = result.items.map((item) => toPlace(item, category))
+    category.currentIndex = 0
     category.loadedPages = [result.page]
     category.totalPages = result.total_pages
     category.nextPage = result.page < result.total_pages ? result.page + 1 : null
@@ -75,7 +76,6 @@ async function loadInitialCategory(category) {
   } finally {
     category.loadingInitial = false
     await nextTick()
-    updateCarouselState(category)
   }
 }
 
@@ -103,7 +103,6 @@ async function loadNextCategoryPage(category) {
   } finally {
     category.loadingMore = false
     await nextTick()
-    updateCarouselState(category)
   }
 }
 
@@ -128,53 +127,84 @@ function setCategoryTrack(slug, element) {
   else categoryTracks.delete(slug)
 }
 
-function updateCarouselState(category) {
-  const track = categoryTracks.get(category.slug)
-  if (!track) return
+function getCardStep(track) {
+  const card = track.querySelector('.card')
+  if (!card) return 0
 
-  const remainingScroll = track.scrollWidth - track.clientWidth - track.scrollLeft
-  category.hasPreviousCard = track.scrollLeft > 1
-  category.hasNextCard = remainingScroll > 1 || Boolean(category.nextPage)
+  const styles = getComputedStyle(track)
+  const gap = Number.parseFloat(styles.columnGap || styles.gap) || 0
+  return card.getBoundingClientRect().width + gap
 }
 
-function scrollCategory(category, direction) {
+function scrollToCategoryIndex(category) {
   const track = categoryTracks.get(category.slug)
   if (!track) return
 
-  const card = track.querySelector('.card')
-  const gap = Number.parseFloat(getComputedStyle(track).gap) || 0
-  const distance = (card?.getBoundingClientRect().width || track.clientWidth) + gap
+  const step = getCardStep(track)
+  if (!step) return
 
-  if (direction > 0 && track.scrollWidth - track.clientWidth - track.scrollLeft <= distance * 1.5) {
-    loadNextCategoryPage(category)
+  track.scrollTo({
+    left: category.currentIndex * step,
+    behavior: 'smooth'
+  })
+}
+
+function syncCategoryIndexFromScroll(category) {
+  const track = categoryTracks.get(category.slug)
+  if (!track) return
+
+  const step = getCardStep(track)
+  if (!step) return
+
+  category.currentIndex = Math.max(0, Math.min(
+    Math.round(track.scrollLeft / step),
+    Math.max(category.items.length - 1, 0)
+  ))
+}
+
+async function scrollCategory(category, direction) {
+  if (category.isNavigating) return
+
+  if (direction < 0) {
+    if (category.currentIndex === 0) return
+    category.currentIndex -= 1
+    category.isNavigating = true
+    scrollToCategoryIndex(category)
+    window.setTimeout(() => { category.isNavigating = false }, 350)
+    return
   }
 
-  track.scrollBy({ left: direction * distance, behavior: 'smooth' })
-  window.setTimeout(() => updateCarouselState(category), 350)
+  const targetIndex = category.currentIndex + 1
+  if (targetIndex >= category.items.length) {
+    const loaded = await loadNextCategoryPage(category)
+    if (!loaded || targetIndex >= category.items.length) return
+  }
+
+  category.currentIndex = targetIndex
+  category.isNavigating = true
+  scrollToCategoryIndex(category)
+  window.setTimeout(() => { category.isNavigating = false }, 350)
 }
 
 function handleCategoryScroll(category) {
-  updateCarouselState(category)
+  syncCategoryIndexFromScroll(category)
   const track = categoryTracks.get(category.slug)
   if (!track || category.loadingMore || !category.nextPage) return
 
-  const remainingScroll = track.scrollWidth - track.clientWidth - track.scrollLeft
-  const card = track.querySelector('.card')
-  const threshold = (card?.getBoundingClientRect().width || track.clientWidth) * 1.5
-  if (remainingScroll <= threshold) loadNextCategoryPage(category)
+  if (category.items.length - category.currentIndex <= 2) loadNextCategoryPage(category)
 }
 
-function updateAllCarouselStates() {
-  categories.value.forEach(updateCarouselState)
+function syncAllCategoryIndexes() {
+  categories.value.forEach(syncCategoryIndexFromScroll)
 }
 
 onMounted(() => {
   categories.value.forEach(loadInitialCategory)
-  window.addEventListener('resize', updateAllCarouselStates)
+  window.addEventListener('resize', syncAllCategoryIndexes)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', updateAllCarouselStates)
+  window.removeEventListener('resize', syncAllCategoryIndexes)
 })
 
 function changeView(view) {
@@ -311,8 +341,8 @@ async function sendChat() {
           <h2>{{ category.subtitle }}</h2>
         </div>
         <div class="section-buttons">
-          <button type="button" :disabled="!category.hasPreviousCard" :aria-label="`${category.label} 이전 장소`" @click="scrollCategory(category, -1)">‹</button>
-          <button type="button" :disabled="!category.hasNextCard || category.loadingMore" :aria-label="`${category.label} 다음 장소`" :aria-busy="category.loadingMore" @click="scrollCategory(category, 1)">›</button>
+          <button type="button" :disabled="category.currentIndex === 0 || category.isNavigating" :aria-label="`${category.label} 이전 장소`" @click="scrollCategory(category, -1)">‹</button>
+          <button type="button" :disabled="category.isNavigating || category.loadingMore || (category.currentIndex >= category.items.length - 1 && !category.nextPage)" :aria-label="`${category.label} 다음 장소`" :aria-busy="category.loadingMore" @click="scrollCategory(category, 1)">›</button>
         </div>
       </div>
 
@@ -330,7 +360,7 @@ async function sendChat() {
           @keydown.enter="openPlaceReviews({ ...place, category: category.label, slug: category.slug })"
         >
           <div class="card-image">
-            <img :src="place.image" :alt="place.title" loading="lazy" @error="handlePlaceImageError($event, place.fallbackImage)" />
+            <img :src="place.image" :alt="place.title" :loading="category.items.indexOf(place) < 4 ? 'eager' : 'lazy'" @error="handlePlaceImageError($event, place.fallbackImage)" />
             <button class="heart" type="button" aria-label="저장" @click.stop>♡</button>
             <span>{{ category.label }}</span>
           </div>

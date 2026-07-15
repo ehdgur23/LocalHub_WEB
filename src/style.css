@@ -97,7 +97,8 @@ nav button:hover, nav button.active { border-bottom-color: var(--blue); opacity:
 .category-state button, .category-more-status button { border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--blue); padding: 8px 12px; cursor: pointer; }
 .category-more-status { display: flex; align-items: center; gap: 10px; min-height: 28px; margin-top: 8px; color: var(--muted); font-size: 13px; }
 .category-more-error { color: #ad3f1d; }
-.card-track { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 8px; }
+.card-track { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; padding-bottom: 8px; }
+.card-track::after { content: ''; flex: 0 0 max(0px, calc(100% - min(330px, calc(100vw - 56px)))); }
 .card-track::-webkit-scrollbar { display: none; }
 .card { flex: 0 0 min(330px, calc(100vw - 56px)); width: min(330px, calc(100vw - 56px)); scroll-snap-align: start; }
 .clickable-card { cursor: pointer; border-radius: 18px; outline: none; }
