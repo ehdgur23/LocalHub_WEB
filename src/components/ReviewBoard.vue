@@ -3,10 +3,10 @@ import { computed, reactive, ref } from 'vue'
 import {
   createPost,
   deletePost,
-  getPlaceByContentId,
   getPost,
   getPostImageUrl,
   getPosts,
+  searchPlaces,
   updatePost,
   verifyPostPassword
 } from '../api/review'
@@ -92,11 +92,11 @@ async function loadReviews(place = selectedPlace.value) {
   backendPlaceId.value = null
 
   try {
-    if (!place?.contentId) {
-      throw new Error('장소의 contentId가 없습니다.')
+    if (!place?.contentId || !place?.title) {
+      throw new Error('장소 정보가 올바르지 않습니다.')
     }
 
-    const backendPlace = await getPlaceByContentId(place.contentId)
+    const backendPlace = await resolveBackendPlace(place)
     if (requestToken.value !== token) return
 
     backendPlaceId.value = backendPlace.id
@@ -117,6 +117,17 @@ async function loadReviews(place = selectedPlace.value) {
       loading.value = false
     }
   }
+}
+
+async function resolveBackendPlace(place) {
+  const places = await searchPlaces(place.title)
+  const backendPlace = places.find((item) => String(item.content_id) === String(place.contentId))
+
+  if (!backendPlace) {
+    throw new Error(`${place.title} 장소 정보를 찾을 수 없습니다.`)
+  }
+
+  return backendPlace
 }
 
 function selectPlace(place) {
@@ -179,8 +190,8 @@ function buildFormData() {
   if (!editingId.value) {
     formData.append('place_id', String(backendPlaceId.value))
     formData.append('nickname', form.nickname.trim())
+    formData.append('password', form.password)
   }
-  formData.append('password', form.password)
   formData.append('title', form.title.trim())
   formData.append('content', form.body.trim())
   formData.append('rating', String(Number(form.rating)))
@@ -192,7 +203,8 @@ function buildFormData() {
 
 async function submitReview() {
   if (!selectedPlace.value || !backendPlaceId.value || submitting.value) return
-  if (!form.title.trim() || !form.body.trim() || !form.password.trim()) return
+  if (!form.title.trim() || !form.body.trim()) return
+  if (!editingId.value && !form.password.trim()) return
   if (!editingId.value && !form.nickname.trim()) return
 
   submitting.value = true
@@ -246,7 +258,7 @@ async function editReview(review) {
   form.title = review.title
   form.body = review.body
   form.rating = review.rating
-  form.password = password
+  form.password = ''
   form.imageFile = null
   form.imagePreview = review.image
   formOpen.value = true
@@ -256,11 +268,18 @@ async function editReview(review) {
 async function removeReview(review) {
   const password = window.prompt('리뷰를 삭제하려면 비밀번호를 입력해 주세요.')
   if (password === null || deletingId.value) return
+  if (!password.trim()) {
+    const message = '비밀번호를 입력해 주세요.'
+    actionError.value = message
+    window.alert(message)
+    return
+  }
 
   deletingId.value = review.id
   actionError.value = ''
   try {
-    await deletePost(review.id, password)
+    await verifyPostPassword(review.id, password)
+    await deletePost(review.id)
     await loadReviews()
   } catch (err) {
     const message = err instanceof Error ? err.message : '리뷰를 삭제하지 못했습니다.'
@@ -369,9 +388,9 @@ function handleBrokenImage(event) {
             <div><span>WRITE A REVIEW</span><h3>{{ editingId ? '리뷰 수정하기' : `${selectedPlace.title} 리뷰 작성` }}</h3></div>
             <button type="button" :disabled="submitting" @click="closeForm">×</button>
           </div>
-          <label>
+          <label v-if="!editingId">
             <span>닉네임</span>
-            <input v-model="form.nickname" :disabled="Boolean(editingId)" :required="!editingId" maxlength="30" placeholder="닉네임 입력" />
+            <input v-model="form.nickname" required maxlength="30" placeholder="닉네임 입력" />
           </label>
           <label>
             <span>제목</span>
@@ -388,7 +407,7 @@ function handleBrokenImage(event) {
                 <option v-for="score in [5,4,3,2,1]" :key="score" :value="score">{{ score }}점</option>
               </select>
             </label>
-            <label>
+            <label v-if="!editingId">
               <span>수정·삭제 비밀번호</span>
               <input v-model="form.password" required type="password" maxlength="20" placeholder="비밀번호 입력" />
             </label>

@@ -26,8 +26,8 @@ export function getPostImageUrl(imageId) {
   return joinUrl(API_BASE_URL, `/posts/images/${imageId}`)
 }
 
-export function getPlaceByContentId(contentId) {
-  return requestJson(`/places/by-content-id/${encodeURIComponent(contentId)}`)
+export function searchPlaces(keyword) {
+  return requestJson(`/posts/search?keyword=${encodeURIComponent(keyword)}`)
 }
 
 export function getPosts(placeId) {
@@ -64,15 +64,18 @@ export async function verifyPostPassword(postId, password) {
   if (!response.ok) {
     throw new Error(await parseError(response))
   }
+
+  const data = await response.json()
+  if (data?.verified !== true) {
+    throw new Error('비밀번호를 확인하지 못했습니다.')
+  }
+
+  return data
 }
 
-export async function deletePost(postId, password) {
+export async function deletePost(postId) {
   const response = await fetch(joinUrl(API_BASE_URL, `/posts/${encodeURIComponent(postId)}`), {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ password })
+    method: 'DELETE'
   })
 
   if (!response.ok) {
