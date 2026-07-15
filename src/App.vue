@@ -10,8 +10,11 @@ import RandomRouteView from './components/RandomRouteView.vue'
 import buriburiLogo from './assets/buriburi-logo.png'
 
 const currentView = ref('home')
+const homeSection = ref('home')
 const homeQuery = ref('')
 const reviewBoard = ref(null)
+const reviewSearchSection = ref(null)
+const reviewSearchInput = ref(null)
 const chatOpen = ref(false)
 const chatText = ref('')
 const chatLoading = ref(false)
@@ -43,6 +46,7 @@ const chatMessages = ref([
 ])
 
 const homeCategories = computed(() => categories.value)
+const isReviewNavigationActive = computed(() => currentView.value === 'detail' || (currentView.value === 'home' && homeSection.value === 'reviews'))
 
 function toPlace(item, category) {
   const rating = Number(item.avg_rating ?? 0)
@@ -241,15 +245,30 @@ onBeforeUnmount(() => {
 
 function changeView(view) {
   currentView.value = view
+  if (view !== 'home') homeSection.value = 'home'
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function goHome() {
   homeQuery.value = ''
+  homeSection.value = 'home'
   changeView('home')
 }
 
+async function goToReviewBoardEntry() {
+  currentView.value = 'home'
+  homeSection.value = 'reviews'
+  await nextTick()
+  reviewSearchSection.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  try {
+    reviewSearchInput.value?.focus({ preventScroll: true })
+  } catch {
+    reviewSearchInput.value?.focus()
+  }
+}
+
 async function openPlaceReviews(place) {
+  homeSection.value = 'reviews'
   currentView.value = 'detail'
   await nextTick()
   reviewBoard.value?.openPlace(place)
@@ -258,6 +277,7 @@ async function openPlaceReviews(place) {
 
 function goBackFromDetail() {
   currentView.value = 'home'
+  homeSection.value = 'reviews'
   window.scrollTo({ top: 0 })
 }
 
@@ -297,6 +317,7 @@ async function sendChat() {
         <img :src="buriburiLogo" alt="BURIBURI" />
       </a>
       <nav>
+        <button :class="{ active: isReviewNavigationActive }" :aria-current="isReviewNavigationActive ? 'page' : undefined" @click="goToReviewBoardEntry">리뷰게시판</button>
         <button :class="{ active: currentView === 'courses' }" @click="changeView('courses')">여행코스</button>
         <button :class="{ active: currentView === 'festival' }" @click="changeView('festival')">축제 일정</button>
       </nav>
@@ -304,7 +325,7 @@ async function sendChat() {
   </header>
 
   <main id="top">
-    <section v-if="currentView === 'home'" class="hero">
+    <section v-if="currentView === 'home'" ref="reviewSearchSection" class="hero">
       <div class="container hero-inner">
         <p class="eyebrow">부산의 장소와 사람을 연결하는 로컬 커뮤니티</p>
         <h1>부산, 어디부터 가볼까요?</h1>
@@ -314,9 +335,10 @@ async function sendChat() {
         </p>
         <div class="search">
           <span aria-hidden="true">⌕</span>
-          <input v-model="homeQuery" type="search" placeholder="장소명, 지역, 카테고리를 입력하세요" aria-label="부산 장소 검색" :aria-busy="searchLoading" @keydown.enter.prevent="runSearch()" />
+          <input ref="reviewSearchInput" v-model="homeQuery" type="search" placeholder="장소명, 지역, 카테고리를 입력하세요" aria-label="부산 장소 검색" :aria-busy="searchLoading" @keydown.enter.prevent="runSearch()" />
           <button v-if="homeQuery" class="clear-search" type="button" aria-label="검색어 지우기" title="검색어 지우기" @click="homeQuery = ''">×</button>
         </div>
+        <p v-if="homeSection === 'reviews'" class="review-entry-guide">리뷰를 확인할 장소를 검색해 주세요.</p>
       </div>
     </section>
 

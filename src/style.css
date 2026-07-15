@@ -142,6 +142,7 @@ nav button:hover, nav button.active { border-bottom-color: var(--blue); opacity:
 .search-more p { margin: 0; color: var(--muted); }
 .search-more button { border: 1px solid var(--line); border-radius: 999px; background: white; color: var(--ink); padding: 10px 16px; font-weight: 800; cursor: pointer; }
 .search-more button:disabled { opacity: .6; cursor: not-allowed; }
+.review-entry-guide { margin: 14px 0 0; color: var(--blue); font-weight: 750; }
 
 /* 랜덤 여행코스: 기존 BURIBURI의 블루·민트 팔레트와 카드 질감을 유지합니다. */
 .random-route-hero { padding: 82px 0 70px; text-align: center; background: radial-gradient(circle at 14% 12%, rgba(119,216,220,.32), transparent 26%), radial-gradient(circle at 88% 0%, rgba(185,224,253,.75), transparent 30%), linear-gradient(180deg, #f7fcff, #fff); }
